@@ -43,6 +43,9 @@
               <RouterLink to="/dashboard" class="dropdown-item" @click="menuOpen = false">
                 📊 Tableau de bord
               </RouterLink>
+              <RouterLink to="/notifications" class="dropdown-item" @click="menuOpen = false">
+                🔔 Notifications
+              </RouterLink>
               <RouterLink
                 v-if="auth.isAdmin"
                 to="/admin/users"
@@ -77,6 +80,7 @@
       </template>
       <template v-else>
         <RouterLink to="/dashboard" class="mobile-link" @click="mobileOpen = false">Tableau de bord</RouterLink>
+        <RouterLink to="/notifications" class="mobile-link" @click="mobileOpen = false">🔔 Notifications</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/admin/users" class="mobile-link admin-mobile" @click="mobileOpen = false">👑 Gestion utilisateurs</RouterLink>
         <RouterLink v-if="auth.isSeller" to="/properties/new" class="mobile-link" @click="mobileOpen = false">Publier une annonce</RouterLink>
         <button class="mobile-link danger-link" @click="handleLogout">Déconnexion</button>

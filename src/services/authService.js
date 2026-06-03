@@ -3,8 +3,8 @@
  *
  * Endpoints disponibles :
  *  POST /api/auth/login              body JSON  { email, password }
- *  POST /api/auth/register           ?username=&email=&password=&fullName=
- *  POST /api/auth/refresh            ?refreshToken=
+ *  POST /api/auth/register           body JSON { username, email, password, fullName }
+ *  POST /api/auth/refresh            body JSON { refreshToken }
  *  GET  /api/auth/validate           Header Authorization: Bearer <token>
  *  GET  /api/auth/health
  */
@@ -32,9 +32,7 @@ const authService = {
    * Rafraîchir le token
    */
   async refreshToken(refreshToken) {
-    const res = await api.post('/auth/refresh', null, {
-      params: { refreshToken }
-    })
+    const res = await api.post('/auth/refresh', { refreshToken })
     return res.data
   },
 

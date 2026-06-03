@@ -1,1 +1,0 @@
-import{a,c as t,b as s,t as r}from"./index-BhtW0ml3.js";const o={class:"loading-container"},p={__name:"LoadingSpinner",props:{message:{type:String,default:"Chargement..."}},setup(n){return(i,e)=>(a(),t("div",o,[e[0]||(e[0]=s("div",{class:"spinner"},null,-1)),s("p",null,r(n.message),1)]))}};export{p as _};

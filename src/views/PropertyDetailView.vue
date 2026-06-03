@@ -85,70 +85,72 @@
           <div class="card-header">Intéressé par ce bien ?</div>
           <div class="card-body">
 
-            <!-- Utilisateur connecté : afficher les coordonnées + actions -->
-            <template v-if="auth.isAuthenticated">
-              <div class="contacts-grid mb-3">
-                <div class="contact-item">
-                  <span class="contact-icon">👤</span>
-                  <div>
-                    <div class="contact-role">Propriétaire</div>
-                    <div class="contact-name">{{ property.ownerName || 'Non renseigné' }}</div>
-                  </div>
-                </div>
-                <div v-if="property.agentName" class="contact-item">
-                  <span class="contact-icon">🏢</span>
-                  <div>
-                    <div class="contact-role">Agent immobilier</div>
-                    <div class="contact-name">{{ property.agentName }}</div>
+            <div class="contacts-grid mb-3">
+              <div :class="['contact-item', { 'contact-locked': !auth.isAuthenticated }]">
+                <span class="contact-icon">👤</span>
+                <div>
+                  <div class="contact-role">Propriétaire</div>
+                  <div class="contact-name">
+                    {{ auth.isAuthenticated ? (property.ownerName || 'Non renseigné') : 'Connectez-vous pour voir' }}
                   </div>
                 </div>
               </div>
-
-              <div class="transaction-actions">
-                <button class="btn btn-primary btn-lg" @click="handleContact">
-                  📞 Contacter le vendeur
-                </button>
-                <button
-                  v-if="property.status === 'AVAILABLE'"
-                  class="btn btn-success btn-lg"
-                  @click="handleOffer"
-                >
-                  🤝 Faire une offre
-                </button>
-                <button
-                  v-if="property.status === 'AVAILABLE'"
-                  class="btn btn-outline btn-lg"
-                  @click="handleSchedule"
-                >
-                  📅 Planifier une visite
-                </button>
-              </div>
-
-              <!-- Feedback après action -->
-              <div v-if="actionFeedback" class="action-feedback">
-                ✅ {{ actionFeedback }}
-              </div>
-            </template>
-
-            <!-- Non connecté : teaser + bouton de connexion -->
-            <template v-else>
-              <div class="transaction-teaser">
-                <div class="teaser-items">
-                  <div class="teaser-item">📞 <span>Coordonnées du vendeur</span></div>
-                  <div class="teaser-item">🤝 <span>Faire une offre</span></div>
-                  <div class="teaser-item">📅 <span>Planifier une visite</span></div>
-                </div>
-                <p class="teaser-note">Connectez-vous pour accéder à ces fonctionnalités</p>
-                <div class="teaser-actions">
-                  <button class="btn btn-primary btn-lg" @click="showLoginPrompt = true">
-                    🔐 Se connecter pour contacter
-                  </button>
-                  <RouterLink to="/register" class="btn btn-outline">
-                    Créer un compte
-                  </RouterLink>
+              <div v-if="property.agentName || !auth.isAuthenticated" :class="['contact-item', { 'contact-locked': !auth.isAuthenticated }]">
+                <span class="contact-icon">🏢</span>
+                <div>
+                  <div class="contact-role">Agent immobilier</div>
+                  <div class="contact-name">
+                    {{ auth.isAuthenticated ? property.agentName : 'Connectez-vous pour voir' }}
+                  </div>
                 </div>
               </div>
-            </template>
+            </div>
+
+            <div class="transaction-actions">
+              <button
+                :class="['btn', 'btn-primary', 'btn-lg', { 'btn-disabled': !auth.isAuthenticated }]"
+                :disabled="!auth.isAuthenticated"
+                @click="handleContact"
+              >
+                📞 Voir les coordonnées
+              </button>
+              <button
+                v-if="property.status === 'AVAILABLE'"
+                :class="['btn', 'btn-success', 'btn-lg', { 'btn-disabled': !auth.isAuthenticated }]"
+                :disabled="!auth.isAuthenticated"
+                @click="handleOffer"
+              >
+                🤝 Faire une offre
+              </button>
+              <button
+                v-if="property.status === 'AVAILABLE'"
+                :class="['btn', 'btn-outline', 'btn-lg', { 'btn-disabled': !auth.isAuthenticated }]"
+                :disabled="!auth.isAuthenticated"
+                @click="handleSchedule"
+              >
+                📅 Planifier une visite
+              </button>
+            </div>
+
+            <div v-if="!auth.isAuthenticated" class="login-required">
+              <span>Connectez-vous pour activer ces actions.</span>
+              <div class="login-required-actions">
+                <button class="btn btn-primary btn-sm" @click="showLoginPrompt = true">
+                  Se connecter
+                </button>
+                <RouterLink to="/register" class="btn btn-outline btn-sm">
+                  Créer un compte
+                </RouterLink>
+              </div>
+            </div>
+
+            <!-- Feedback après action -->
+            <div v-if="actionFeedback" class="action-feedback">
+              ✅ {{ actionFeedback }}
+            </div>
+            <div v-if="actionError" class="action-error">
+              {{ actionError }}
+            </div>
           </div>
         </div>
 
@@ -185,6 +187,29 @@
       :message="loginPromptMessage"
       @close="showLoginPrompt = false"
     />
+
+    <div v-if="showContactModal" class="modal-backdrop" @click.self="showContactModal = false">
+      <div class="contact-modal card">
+        <div class="modal-header">
+          <h2>Coordonnées du propriétaire</h2>
+          <button class="modal-close" @click="showContactModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="contact-line">
+            <span>Nom</span>
+            <strong>{{ property.ownerName || 'Non renseigné' }}</strong>
+          </div>
+          <div class="contact-line">
+            <span>Téléphone</span>
+            <strong>{{ ownerPhone }}</strong>
+          </div>
+          <button class="btn btn-primary w-full" @click="copyOwnerPhone">
+            Copier le numéro
+          </button>
+          <p v-if="copyFeedback" class="copy-feedback">{{ copyFeedback }}</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -193,6 +218,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePropertyStore } from '@/stores/property'
 import { useAuthStore }     from '@/stores/auth'
+import interactionService   from '@/services/interactionService'
 import LoadingSpinner    from '@/components/common/LoadingSpinner.vue'
 import LoginPromptModal  from '@/components/common/LoginPromptModal.vue'
 
@@ -212,6 +238,11 @@ const showLoginPrompt   = ref(false)
 const loginPromptTitle  = ref('Connectez-vous pour continuer')
 const loginPromptMessage = ref('')
 const actionFeedback    = ref('')
+const actionError       = ref('')
+const showContactModal  = ref(false)
+const copyFeedback      = ref('')
+
+const ownerPhone = computed(() => property.value?.ownerPhone || 'Non renseigné')
 
 function requireLogin(title, message) {
   if (!auth.isAuthenticated) {
@@ -228,26 +259,53 @@ function handleContact() {
     '📞 Contacter le vendeur',
     'Connectez-vous pour accéder aux coordonnées du vendeur et le contacter directement.'
   )) return
-  actionFeedback.value = `Demande envoyée à ${property.value.ownerName || 'le vendeur'}. Il vous contactera sous peu.`
-  setTimeout(() => { actionFeedback.value = '' }, 5000)
+  showContactModal.value = true
 }
 
-function handleOffer() {
+async function handleOffer() {
   if (!requireLogin(
     '🤝 Faire une offre',
     'Connectez-vous pour soumettre une offre sur ce bien et entrer en négociation avec le vendeur.'
   )) return
-  actionFeedback.value = 'Votre demande d\'offre a été transmise au vendeur.'
-  setTimeout(() => { actionFeedback.value = '' }, 5000)
+
+  actionError.value = ''
+  try {
+    const data = await interactionService.createOffer(property.value.id, {
+      message: `Bonjour, je suis intéressé par votre bien "${property.value.title}" et je souhaite discuter d'une offre.`
+    })
+    router.push(`/chat/${data.conversation.id}`)
+  } catch (err) {
+    actionError.value = err.response?.data?.message || err.message || 'Impossible de créer la conversation.'
+  }
 }
 
-function handleSchedule() {
+async function handleSchedule() {
   if (!requireLogin(
     '📅 Planifier une visite',
     'Connectez-vous pour demander une visite et choisir un créneau avec le vendeur.'
   )) return
-  actionFeedback.value = 'Votre demande de visite a été envoyée. Le vendeur vous confirmera un créneau.'
-  setTimeout(() => { actionFeedback.value = '' }, 5000)
+
+  actionError.value = ''
+  try {
+    await interactionService.requestVisit(property.value.id, {
+      message: `Je souhaite planifier une visite pour le bien "${property.value.title}".`,
+      requestedDate: ''
+    })
+    actionFeedback.value = 'Votre demande de visite a été envoyée au propriétaire.'
+    setTimeout(() => { actionFeedback.value = '' }, 5000)
+  } catch (err) {
+    actionError.value = err.response?.data?.message || err.message || 'Impossible de planifier la visite.'
+  }
+}
+
+async function copyOwnerPhone() {
+  if (!property.value?.ownerPhone) {
+    copyFeedback.value = 'Aucun numéro disponible.'
+    return
+  }
+  await navigator.clipboard.writeText(property.value.ownerPhone)
+  copyFeedback.value = 'Numéro copié.'
+  setTimeout(() => { copyFeedback.value = '' }, 2500)
 }
 
 // ── Métadonnées ────────────────────────────────────────────────────────────
@@ -313,6 +371,8 @@ onMounted(() => propertyStore.fetchById(route.params.id))
 .contact-icon { font-size: 1.75rem; }
 .contact-role { font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; }
 .contact-name { font-weight: 600; color: var(--gray-700); }
+.contact-locked { opacity: 0.62; }
+.contact-locked .contact-name { color: var(--gray-400); }
 .owner-actions { margin-bottom: 1.5rem; }
 .detail-meta { font-size: 0.8rem; color: var(--gray-400); text-align: center; padding: 1rem 0; }
 
@@ -323,6 +383,15 @@ onMounted(() => propertyStore.fetchById(route.params.id))
 .btn-success { background: #16a34a; color: white; border-radius: var(--radius-sm); padding: 0.625rem 1.25rem; font-size: 0.9rem; font-weight: 600; border: none; cursor: pointer; transition: background 0.2s; }
 .btn-success:hover { background: #15803d; }
 .btn-lg { padding: 0.75rem 1.5rem; font-size: 1rem; }
+.btn-disabled,
+.btn-disabled:hover {
+  background: var(--gray-200) !important;
+  border-color: var(--gray-200) !important;
+  color: var(--gray-500) !important;
+  cursor: not-allowed;
+  opacity: 1;
+  box-shadow: none;
+}
 
 .action-feedback {
   margin-top: 1rem; padding: 0.875rem 1rem;
@@ -330,19 +399,48 @@ onMounted(() => propertyStore.fetchById(route.params.id))
   border-radius: var(--radius-sm); color: #166534;
   font-size: 0.875rem; font-weight: 500;
 }
+.action-error {
+  margin-top: 1rem; padding: 0.875rem 1rem;
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: var(--radius-sm); color: #991b1b;
+  font-size: 0.875rem; font-weight: 500;
+}
 .mb-3 { margin-bottom: 1rem; }
 
-/* Teaser (non connecté) */
-.transaction-teaser { text-align: center; }
-.teaser-items { display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.teaser-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--gray-600); padding: 0.5rem 1rem; background: var(--gray-50); border-radius: var(--radius-full); border: 1px solid var(--gray-200); filter: blur(0px); }
-.teaser-note { font-size: 0.875rem; color: var(--gray-400); margin-bottom: 1.25rem; }
-.teaser-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+.login-required {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
+.login-required-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem; background: rgba(15, 23, 42, 0.45);
+}
+.contact-modal { width: 100%; max-width: 420px; overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--gray-100); }
+.modal-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--gray-800); }
+.modal-close { width: 2rem; height: 2rem; border: none; background: var(--gray-100); border-radius: 50%; cursor: pointer; font-size: 1.2rem; color: var(--gray-600); }
+.modal-body { padding: 1.25rem; }
+.contact-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--gray-100); }
+.contact-line span { color: var(--gray-500); }
+.contact-line strong { color: var(--gray-800); text-align: right; }
+.w-full { width: 100%; margin-top: 1rem; justify-content: center; }
+.copy-feedback { text-align: center; margin-top: 0.75rem; color: #166534; font-size: 0.875rem; font-weight: 600; }
 
 @media (max-width: 768px) {
   .detail-grid { grid-template-columns: 1fr; }
   .transaction-actions { flex-direction: column; }
-  .teaser-items { gap: 0.75rem; }
-  .teaser-actions { flex-direction: column; align-items: stretch; }
+  .login-required { align-items: stretch; flex-direction: column; }
+  .login-required-actions { flex-direction: column; }
 }
 </style>

@@ -67,6 +67,12 @@ const userService = {
   async becomeBuyer() {
     const res = await api.put('/users/me/become-buyer')
     return res.data
+  },
+
+  /** Changer le mot de passe du compte connecte */
+  async changePassword(oldPassword, newPassword) {
+    const res = await api.post('/users/change-password', { oldPassword, newPassword })
+    return res.data
   }
 }
 
